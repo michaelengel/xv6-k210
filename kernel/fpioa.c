@@ -5,6 +5,7 @@
 #include "include/riscv.h"
 #include "include/sysctl.h"
 #include "include/memlayout.h"
+#include "include/printf.h"
 
 /* Copyright 2018 Canaan Inc.
  *
@@ -4933,11 +4934,27 @@ int fpioa_get_io_by_function(fpioa_function_t function)
 }
 
 void fpioa_pin_init() {
+#ifdef BOARD_GENERIC
     fpioa_set_function(27, FUNC_SPI0_SCLK);
     fpioa_set_function(28, FUNC_SPI0_D0);
     fpioa_set_function(26, FUNC_SPI0_D1);
 	fpioa_set_function(32, FUNC_GPIOHS7);
     fpioa_set_function(29, FUNC_SPI0_SS3);
+#elif BOARD_KD233
+    fpioa_set_function(29, FUNC_SPI0_SCLK);
+    fpioa_set_function(30, FUNC_SPI0_D0);
+    fpioa_set_function(31, FUNC_SPI0_D1);
+    fpioa_set_function(32, FUNC_GPIOHS7);
+
+    fpioa_set_function(24, FUNC_SPI0_SS3);
+
+    fpioa_set_function(33, FUNC_I2S0_OUT_D0);
+    fpioa_set_function(35, FUNC_I2S0_SCLK);
+    fpioa_set_function(34, FUNC_I2S0_WS);
+#else
+#error "Unsupported board"
+#endif
+
     #ifdef DEBUG
     printf("fpioa_pin_init\n");
     #endif

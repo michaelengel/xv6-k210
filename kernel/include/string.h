@@ -9,6 +9,7 @@ void*           memset(void*, int, uint);
 char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
 int             strncmp(const char*, const char*, uint);
+int             strncasecmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 void            wnstr(wchar *dst, char const *src, int len);
 void            snstr(char *dst, wchar const *src, int len);

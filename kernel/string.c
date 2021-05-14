@@ -64,6 +64,16 @@ strncmp(const char *p, const char *q, uint n)
   return (uchar)*p - (uchar)*q;
 }
 
+int
+strncasecmp(const char *p, const char *q, uint n)
+{
+  while(n > 0 && *p && ((*p & ~0x20) == (*q & ~0x20)))
+    n--, p++, q++;
+  if(n == 0)
+    return 0;
+  return (uchar)*p - (uchar)*q;
+}
+
 char*
 strncpy(char *s, const char *t, int n)
 {

@@ -1,5 +1,7 @@
 platform	:= k210
-#platform	:= qemu
+# platform	:= qemu
+# board           := BOARD_GENERIC
+board           := BOARD_KD233
 # mode := debug
 mode := release
 K=kernel
@@ -65,8 +67,8 @@ else
 RUSTSBI = ./bootloader/SBI/sbi-qemu
 endif
 
-# TOOLPREFIX	:= riscv64-unknown-elf-
-TOOLPREFIX	:= riscv64-linux-gnu-
+TOOLPREFIX	:= riscv64-unknown-elf-
+# TOOLPREFIX	:= riscv64-linux-gnu-
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
@@ -74,6 +76,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -g
+CFLAGS += -D$(board)
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -213,17 +216,26 @@ UPROGS=\
 
 userprogs: $(UPROGS)
 
-dst=/mnt
+dst=mnt
 
 # @sudo cp $U/_init $(dst)/init
 # @sudo cp $U/_sh $(dst)/sh
 # Make fs image
 fs: $(UPROGS)
-	@if [ ! -f "fs.img" ]; then \
-		echo "making fs image..."; \
-		dd if=/dev/zero of=fs.img bs=512k count=512; \
-		mkfs.vfat -F 32 fs.img; fi
-	@sudo mount fs.img $(dst)
+	@if [ `uname -s` = "Linux" -a ! -f "fs.img" ]; then \
+			echo "making fs image..."; \
+			dd if=/dev/zero of=fs.img bs=512k count=256; \
+			mkfs.vfat -F 32 fs.img; \
+	fi
+	@if [ `uname -s` = "Linux" ]; then \
+		@sudo mount fs.img $(dst); \
+	fi
+	@if [ `uname -s` = "Darwin" ]; then \
+		hdiutil create -fs FAT32 -volname xv6 -type UDIF -size 128M -layout none fs; \
+		mv fs.dmg fs.img; \
+		mkdir mnt; \
+		hdiutil mount -mountpoint `pwd`/mnt fs.img; \
+	fi
 	@if [ ! -d "$(dst)/bin" ]; then sudo mkdir $(dst)/bin; fi
 	@sudo cp README $(dst)/README
 	@for file in $$( ls $U/_* ); do \
@@ -231,14 +243,13 @@ fs: $(UPROGS)
 		sudo cp $$file $(dst)/bin/$${file#$U/_}; done
 	@sudo umount $(dst)
 
-# Write mounted sdcard
-sdcard: userprogs
-	@if [ ! -d "$(dst)/bin" ]; then sudo mkdir $(dst)/bin; fi
-	@for file in $$( ls $U/_* ); do \
-		sudo cp $$file $(dst)/bin/$${file#$U/_}; done
-	@sudo cp $U/_init $(dst)/init
-	@sudo cp $U/_sh $(dst)/sh
-	@sudo cp README $(dst)/README
+# Write sdcard
+sdcard: fs
+	@if [ "$(sd)" != "" ]; then \
+		echo "flashing into sd card..."; \
+		sudo dd if=fs.img of=$(sd); \
+	else \
+		echo "sd card not detected!"; fi
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \

@@ -170,7 +170,7 @@ static int verify_operation_condition(void) {
 // read OCR register to check if the voltage range is valid 
 // this step is not mandotary, but I advise to use it 
 static int read_OCR(void) {
-	uint64 result;
+	uint64 result = 0;
 	uint8 ocr[4];
 
 	int timeout;
@@ -292,7 +292,9 @@ static int sd_init(void) {
 	uint8 frame[10];
 
 	sd_lowlevel_init(0);
-	//SD_CS_HIGH();
+#ifdef BOARD_KD233
+	SD_CS_HIGH();
+#endif
 	SD_CS_LOW();
 
 	// send dummy bytes for 80 clock cycles 

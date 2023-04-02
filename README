@@ -1,3 +1,46 @@
+This is a port of xv6 to the VisionFive 2 (VF2) RISC V board.
+
+The VF2 port runs in S mode of the CPU and uses SBI functions
+for UART output for now.
+
+It is based on the xv6 K210 and my xv6 Allwinner D1 port:
+https://github.com/HUST-OS/xv6-k210
+https://github.com/michaelengel/xv6-d1
+
+
+Problems:
+
+- Currently, the RAM disk is included in kernel/include/ramdisk.h -
+  this is a prebuilt FAT image with some of the tools from the
+  xv6-user directory. Regenerating the image is not yet included 
+  in the Makefile.
+
+- No multiprocessor support (enabled) so far.
+
+- The UART code is still problematic due to interrupt handling of 
+  the dwc UART core.
+
+
+Try it:
+
+1. Use "make" to build a binary kernel "kernel.bin" in target.
+
+2. Connect to the UART on the VF2 board using minicom 
+   (pinout identical to the Raspberry Pi, 115200 bps, no handshake)
+
+3. Load the kernel in u-boot via the ymodem protocol using 
+   "loady 0x80400000"
+
+4. If the transfer was successful, boot the kernel using
+   "go 0x80400000"
+
+Have fun!
+
+- Michael Engel (engel@multicores.org)
+
+
+--- original README ---
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.

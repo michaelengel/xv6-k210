@@ -99,4 +99,17 @@ static inline void sbi_set_mie(void) {
 	SBI_CALL_0(0x0A000005);
 }
 
+static inline void sbi_hart_start(unsigned long hart, unsigned long addr) {
+	asm volatile("mv a6, %0" : : "r" (0x0));
+	SBI_CALL_3(0x48534D, hart, addr, 0x4711);
+}
+
+static inline unsigned long sbi_hart_get_status(unsigned long hart) {
+	unsigned long ret;
+	asm volatile("mv a6, %0" : : "r" (0x1));
+	SBI_CALL_1(0x48534D, hart);
+	asm volatile("mv %0, a0" : "=r" (ret));
+	return ret;
+}
+
 #endif

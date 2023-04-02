@@ -38,17 +38,15 @@
 #ifdef QEMU
 // qemu puts UART registers here in physical memory.
 #define UART                    0x10000000L
-#else
+#elif defined(K210)
 #define UART                    0x38000000L
+#elif defined(VF2)
+#define UART                    0x10000000L
+#else
+#error "Unknown platform"
 #endif
 
 #define UART_V                  (UART + VIRT_OFFSET)
-
-#ifdef QEMU
-// virtio mmio interface
-#define VIRTIO0                 0x10001000
-#define VIRTIO0_V               (VIRTIO0 + VIRT_OFFSET)
-#endif
 
 // local interrupt controller, which contains the timer.
 #define CLINT                   0x02000000L
@@ -59,36 +57,12 @@
 
 #define PLIC_PRIORITY           (PLIC_V + 0x0)
 #define PLIC_PENDING            (PLIC_V + 0x1000)
-#define PLIC_MENABLE(hart)      (PLIC_V + 0x2000 + (hart) * 0x100)
-#define PLIC_SENABLE(hart)      (PLIC_V + 0x2080 + (hart) * 0x100)
-#define PLIC_MPRIORITY(hart)    (PLIC_V + 0x200000 + (hart) * 0x2000)
-#define PLIC_SPRIORITY(hart)    (PLIC_V + 0x201000 + (hart) * 0x2000)
-#define PLIC_MCLAIM(hart)       (PLIC_V + 0x200004 + (hart) * 0x2000)
-#define PLIC_SCLAIM(hart)       (PLIC_V + 0x201004 + (hart) * 0x2000)
-
-#ifndef QEMU
-#define GPIOHS                  0x38001000
-#define DMAC                    0x50000000
-#define GPIO                    0x50200000
-#define SPI_SLAVE               0x50240000
-#define FPIOA                   0x502B0000
-#define SPI0                    0x52000000
-#define SPI1                    0x53000000
-#define SPI2                    0x54000000
-#define SYSCTL                  0x50440000
-
-#define GPIOHS_V                (0x38001000 + VIRT_OFFSET)
-#define DMAC_V                  (0x50000000 + VIRT_OFFSET)
-#define GPIO_V                  (0x50200000 + VIRT_OFFSET)
-#define SPI_SLAVE_V             (0x50240000 + VIRT_OFFSET)
-#define FPIOA_V                 (0x502B0000 + VIRT_OFFSET)
-#define SPI0_V                  (0x52000000 + VIRT_OFFSET)
-#define SPI1_V                  (0x53000000 + VIRT_OFFSET)
-#define SPI2_V                  (0x54000000 + VIRT_OFFSET)
-#define SYSCTL_V                (0x50440000 + VIRT_OFFSET)
-
-
-#endif
+// #define PLIC_MENABLE(hart)      (PLIC_V + 0x2080 + (hart-1) * 0x100)
+#define PLIC_SENABLE(hart)      (PLIC_V + 0x2100 + (hart-1) * 0x100)
+// #define PLIC_MPRIORITY(hart)    (PLIC_V + 0x200000 + (hart) * 0x2000)
+#define PLIC_SPRIORITY(hart)    (PLIC_V + 0x202000 + (hart-1) * 0x2000)
+// #define PLIC_MCLAIM(hart)       (PLIC_V + 0x200004 + (hart) * 0x2000)
+#define PLIC_SCLAIM(hart)       (PLIC_V + 0x202004 + (hart-1) * 0x2000)
 
 // the physical address of rustsbi
 #define RUSTSBI_BASE            0x80000000
@@ -99,10 +73,10 @@
 #ifndef QEMU
 #define KERNBASE                0x80020000
 #else
-#define KERNBASE                0x80200000
+#define KERNBASE                0x80400000
 #endif
 
-#define PHYSTOP                 0x80600000
+#define PHYSTOP                 0x81000000
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.

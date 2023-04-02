@@ -23,14 +23,14 @@ void
 kvminit()
 {
   kernel_pagetable = (pagetable_t) kalloc();
-  // printf("kernel_pagetable: %p\n", kernel_pagetable);
+  printf("kernel_pagetable: %p\n", kernel_pagetable);
 
   memset(kernel_pagetable, 0, PGSIZE);
 
   // uart registers
   kvmmap(UART_V, UART, PGSIZE, PTE_R | PTE_W);
   
-  #ifdef QEMU
+  #ifdef XXQEMU
   // virtio mmio disk interface
   kvmmap(VIRTIO0_V, VIRTIO0, PGSIZE, PTE_R | PTE_W);
   #endif
@@ -38,45 +38,15 @@ kvminit()
   kvmmap(CLINT_V, CLINT, 0x10000, PTE_R | PTE_W);
 
   // PLIC
-  kvmmap(PLIC_V, PLIC, 0x4000, PTE_R | PTE_W);
-  kvmmap(PLIC_V + 0x200000, PLIC + 0x200000, 0x4000, PTE_R | PTE_W);
+  kvmmap(PLIC_V, PLIC, 3 * PGSIZE, PTE_R | PTE_W);
+  kvmmap(PLIC_V + 0x200000, PLIC + 0x200000, 3 * PGSIZE, PTE_R | PTE_W);
 
-  #ifndef QEMU
-  // GPIOHS
-  kvmmap(GPIOHS_V, GPIOHS, 0x1000, PTE_R | PTE_W);
-
-  // DMAC
-  kvmmap(DMAC_V, DMAC, 0x1000, PTE_R | PTE_W);
-
-  // GPIO
-  // kvmmap(GPIO_V, GPIO, 0x1000, PTE_R | PTE_W);
-
-  // SPI_SLAVE
-  kvmmap(SPI_SLAVE_V, SPI_SLAVE, 0x1000, PTE_R | PTE_W);
-
-  // FPIOA
-  kvmmap(FPIOA_V, FPIOA, 0x1000, PTE_R | PTE_W);
-
-  // SPI0
-  kvmmap(SPI0_V, SPI0, 0x1000, PTE_R | PTE_W);
-
-  // SPI1
-  kvmmap(SPI1_V, SPI1, 0x1000, PTE_R | PTE_W);
-
-  // SPI2
-  kvmmap(SPI2_V, SPI2, 0x1000, PTE_R | PTE_W);
-
-  // SYSCTL
-  kvmmap(SYSCTL_V, SYSCTL, 0x1000, PTE_R | PTE_W);
-  
-  #endif
-  
-  // map rustsbi
-  // kvmmap(RUSTSBI_BASE, RUSTSBI_BASE, KERNBASE - RUSTSBI_BASE, PTE_R | PTE_X);
   // map kernel text executable and read-only.
   kvmmap(KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
+
   // map kernel data and the physical RAM we'll make use of.
   kvmmap((uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
@@ -91,12 +61,12 @@ kvminit()
 void
 kvminithart()
 {
+  printf("kvminithart start\n");
   w_satp(MAKE_SATP(kernel_pagetable));
   // reg_info();
+  printf("kvminithart before sfence_vma\n");
   sfence_vma();
-  #ifdef DEBUG
-  printf("kvminithart\n");
-  #endif
+  printf("kvminithart end\n");
 }
 
 // Return the address of the PTE in page table pagetable
@@ -209,7 +179,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
       return -1;
     if(*pte & PTE_V)
       panic("remap");
-    *pte = PA2PTE(pa) | perm | PTE_V;
+    *pte = PA2PTE(pa) | perm | PTE_V | PTE_A | PTE_D;
     if(a == last)
       break;
     a += PGSIZE;

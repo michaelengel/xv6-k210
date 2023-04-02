@@ -1,7 +1,9 @@
-platform	:= k210
+# platform	:= k210
 # platform	:= qemu
+platform	:= vf2
 # board           := BOARD_GENERIC
-board           := BOARD_KD233
+# board           := BOARD_KD233
+board           := BOARD_VF2
 # mode := debug
 mode := release
 K=kernel
@@ -11,8 +13,10 @@ T=target
 OBJS =
 ifeq ($(platform), k210)
 OBJS += $K/entry_k210.o
-else
+else ifeq ($(platform), qemu)
 OBJS += $K/entry_qemu.o
+else ifeq ($(platform), vf2)
+OBJS += $K/entry_vf2.o
 endif
 
 OBJS += \
@@ -38,6 +42,7 @@ OBJS += \
   $K/kernelvec.o \
   $K/timer.o \
   $K/disk.o \
+  $K/ramdisk.o \
   $K/fat32.o \
   $K/plic.o \
   $K/console.o
@@ -50,13 +55,12 @@ OBJS += \
   $K/utils.o \
   $K/sdcard.o \
   $K/dmac.o \
-  $K/sysctl.o \
+  $K/sysctl.o 
+endif
 
-else
+ifeq ($(platform), vf2)
 OBJS += \
-  $K/virtio_disk.o \
-  #$K/uart.o \
-
+  $K/uart.o 
 endif
 
 QEMU = qemu-system-riscv64
@@ -88,7 +92,11 @@ CFLAGS += -DDEBUG
 endif 
 
 ifeq ($(platform), qemu)
-CFLAGS += -D QEMU
+CFLAGS += -DQEMU
+endif
+
+ifeq ($(platform), vf2)
+CFLAGS += -DVF2 
 endif
 
 LDFLAGS = -z max-page-size=4096
@@ -101,12 +109,17 @@ ifeq ($(platform), qemu)
 linker = ./linker/qemu.ld
 endif
 
+ifeq ($(platform), vf2)
+linker = ./linker/vf2.ld
+endif
+
 # Compile Kernel
-$T/kernel: $(OBJS) $(linker) $U/initcode
+$T/kernel.bin: $(OBJS) $(linker) $U/initcode
 	@if [ ! -d "./target" ]; then mkdir target; fi
 	@$(LD) $(LDFLAGS) -T $(linker) -o $T/kernel $(OBJS)
 	@$(OBJDUMP) -S $T/kernel > $T/kernel.asm
 	@$(OBJDUMP) -t $T/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $T/kernel.sym
+	@$(OBJCOPY) -O binary $T/kernel $T/kernel.bin
   
 build: $T/kernel userprogs
 
@@ -129,7 +142,7 @@ k210 = $T/k210.bin
 k210-serialport := /dev/ttyUSB0
 
 ifndef CPUS
-CPUS := 2
+CPUS := 4
 endif
 
 QEMUOPTS = -machine virt -kernel $T/kernel -m 8M -nographic

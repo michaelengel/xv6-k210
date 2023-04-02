@@ -22,6 +22,14 @@
 #include "include/dmac.h"
 #endif
 
+volatile int boothartid = -1;
+extern int sbi_console;
+
+void uart_init(void);
+void uart_entxi(void);
+void uart_putchar(int);
+void uart_putc_sync(int);
+
 static inline void inithartid(unsigned long hartid) {
   asm volatile("mv tp, %0" : : "r" (hartid & 0x1));
 }
@@ -31,53 +39,79 @@ volatile static int started = 0;
 void
 main(unsigned long hartid, unsigned long dtb_pa)
 {
+  sbi_console = 1;
   inithartid(hartid);
   
-  if (hartid == 0) {
+  printf("xv6 starting...\n");
+  if (boothartid == -1) {
+    // start first hartid
+    boothartid = hartid;
+
+    printf("hartid %d is the boot core...\n", hartid);
     consoleinit();
     printfinit();   // init a lock for printf 
     print_logo();
-    #ifdef DEBUG
-    printf("hart %d enter main()...\n", hartid);
-    #endif
+
     kinit();         // physical page allocator
+    printf("hartid %d after kinit...\n", hartid);
     kvminit();       // create kernel page table
+    printf("hartid %d after kvminit...\n", hartid);
     kvminithart();   // turn on paging
+    printf("hartid %d after kvminithart...\n", hartid);
     timerinit();     // init a lock for timer
+    printf("hartid %d after timerinit...\n", hartid);
     trapinithart();  // install kernel trap vector, including interrupt handler
+    printf("hartid %d after trapinithart...\n", hartid);
+    uart_init();
+    printf("hartid %d after uart_init...\n", hartid);
     procinit();
+    printf("hartid %d after procinit...\n", hartid);
     plicinit();
-    plicinithart();
-    #ifndef QEMU
-    fpioa_pin_init();
-    dmac_init();
-    #endif 
-    disk_init();
+    printf("hartid %d after plicinit...\n", hartid);
+    plicinithart(hartid);
+    printf("hartid %d after plicinithart...\n", hartid);
+    // disk_init();
     binit();         // buffer cache
     fileinit();      // file table
     userinit();      // first user process
-    printf("hart 0 init done\n");
+    printf("hart %d init done\n", hartid);
+
+    // printf("switching from SBI to UART console\n");
+    // sbi_console = 0;
     
-    for(int i = 1; i < NCPU; i++) {
-      unsigned long mask = 1 << i;
-      sbi_send_ipi(&mask);
+    // bring up the remaining harts - note that hart 0 is the S7 (no MMU)
+#if 0
+    for(int i = 1; i < 3; i++) {
+      if (i == hartid) continue; // the boot hart is already started...
+        printf("Starting hart %d\n", i);
+        sbi_hart_start(i, 0x80400000);
+//        while ((r = sbi_hart_get_status(i) != 0))
+//           printf("hart %d status %x\n", i, r);
     }
+    printf("All harts started\n");
+#endif
+
     __sync_synchronize();
     started = 1;
   }
   else
   {
-    // hart 1
+    printf("more hart!\n");
+
     while (started == 0)
       ;
-    __sync_synchronize();
-    #ifdef DEBUG
-    printf("hart %d enter main()...\n", hartid);
-    #endif
+    inithartid(hartid); // XXX
     kvminithart();
+    __sync_synchronize();
+
+    printf("hartid %d continues\n", hartid);
+    for (int i=0; i<10000000; i++);
+
     trapinithart();
-    plicinithart();  // ask PLIC for device interrupts
-    printf("hart 1 init done\n");
+
+    plicinithart(hartid);  // ask PLIC for device interrupts
+    printf("hart %d init done\n", hartid);
   }
+  printf("scheduler on hart %d\n", hartid);
   scheduler();
 }

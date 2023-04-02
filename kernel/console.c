@@ -20,18 +20,31 @@
 #include "include/riscv.h"
 #include "include/proc.h"
 #include "include/sbi.h"
+#include "include/uart.h"
 
 #define BACKSPACE 0x100
 #define C(x)  ((x)-'@')  // Control-x
 
+int sbi_console;
+
 void consputc(int c) {
-  if(c == BACKSPACE){
-    // if the user typed backspace, overwrite with a space.
-    sbi_console_putchar('\b');
-    sbi_console_putchar(' ');
-    sbi_console_putchar('\b');
+  if(sbi_console == 0) {
+    if(c == BACKSPACE){
+      uart_putchar('\b');
+      uart_putchar(' ');
+      uart_putchar('\b');
+    } else {
+      uart_putchar(c);
+    }
   } else {
-    sbi_console_putchar(c);
+    if(c == BACKSPACE){
+      // if the user typed backspace, overwrite with a space.
+      sbi_console_putchar('\b');
+      sbi_console_putchar(' ');
+      sbi_console_putchar('\b');
+    } else {
+      sbi_console_putchar(c);
+    }
   }
 }
 struct {
@@ -56,9 +69,14 @@ consolewrite(int user_src, uint64 src, int n)
   acquire(&cons.lock);
   for(i = 0; i < n; i++){
     char c;
+
     if(either_copyin(&c, user_src, src+i, 1) == -1)
       break;
-    sbi_console_putchar(c);
+
+    if (sbi_console == 0)
+      uart_putchar(c);
+    else
+      sbi_console_putchar(c);
   }
   release(&cons.lock);
 
@@ -152,11 +170,7 @@ consoleintr(int c)
     break;
   default:
     if(c != 0 && cons.e-cons.r < INPUT_BUF){
-      #ifndef QEMU
-      if (c == '\r') break;     // on k210, "enter" will input \n and \r
-      #else
       c = (c == '\r') ? '\n' : c;
-      #endif
       // echo back to the user.
       consputc(c);
 

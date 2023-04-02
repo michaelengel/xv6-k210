@@ -10,6 +10,8 @@
 #include "include/string.h"
 #include "include/printf.h"
 
+#define DEBUG
+
 /* fields that start with "_" are something we don't use */
 
 typedef struct short_name_entry {
@@ -80,8 +82,10 @@ int fat32_init()
     printf("[fat32_init] enter!\n");
     #endif
     struct buf *b = bread(0, 0);
-    if (strncmp((char const*)(b->data + 82), "FAT32", 5))
+    if (strncmp((char const*)(b->data + 82), "FAT32", 5)) {
+        printf("not FAT32 volume");
         panic("not FAT32 volume");
+    }
     // fat.bpb.byts_per_sec = *(uint16 *)(b->data + 11);
     memmove(&fat.bpb.byts_per_sec, b->data + 11, 2);            // avoid misaligned load on k210
     fat.bpb.sec_per_clus = *(b->data + 13);

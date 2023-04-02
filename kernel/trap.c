@@ -19,6 +19,8 @@ extern char trampoline[], uservec[], userret[];
 extern void kernelvec();
 
 int devintr();
+int uart_getchar();
+void uart_intr();
 
 // void
 // trapinit(void)
@@ -178,6 +180,21 @@ kerneltrap() {
   w_sstatus(sstatus);
 }
 
+void debug_hex(unsigned int v) {
+	int n, d;
+
+ 	sbi_console_putchar('0');
+ 	sbi_console_putchar('x');
+
+	for (n = 7; n>=0; n--) {
+		d = (v >> (4*n)) & 0xf;
+		if (d <= 9) 
+	  	 	sbi_console_putchar('0'+d);
+		else
+  		 	sbi_console_putchar('a'+d-10);
+	}
+}
+
 // Check if it's an external/software interrupt, 
 // and handle it. 
 // returns  2 if timer interrupt, 
@@ -186,26 +203,15 @@ kerneltrap() {
 int devintr(void) {
 	uint64 scause = r_scause();
 
-	#ifdef QEMU 
 	// handle external interrupt 
 	if ((0x8000000000000000L & scause) && 9 == (scause & 0xff)) 
-	#else 
-	// on k210, supervisor software interrupt is used 
-	// in alternative to supervisor external interrupt, 
-	// which is not available on k210. 
-	if (0x8000000000000001L == scause && 9 == r_stval()) 
-	#endif 
 	{
 		int irq = plic_claim();
-		if (UART_IRQ == irq) {
+		// if (UART_IRQ == irq) {
+		if (irq == 32) {
 			// keyboard input 
-			int c = sbi_console_getchar();
-			if (-1 != c) {
-				consoleintr(c);
-			}
-		}
-		else if (DISK_IRQ == irq) {
-			disk_intr();
+			sbi_console_putchar('\0');
+			uart_intr();
 		}
 		else if (irq) {
 			printf("unexpected interrupt irq = %d\n", irq);
@@ -213,8 +219,8 @@ int devintr(void) {
 
 		if (irq) { plic_complete(irq);}
 
-		#ifndef QEMU 
-		w_sip(r_sip() & ~2);    // clear pending bit
+		w_sip(r_sip() & ~2);    // clear pending bit XXX
+		#if 1
 		sbi_set_mie();
 		#endif 
 

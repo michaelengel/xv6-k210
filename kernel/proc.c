@@ -248,19 +248,19 @@ uchar initcode[] = {
   0x00, 0x00, 0x00, 0x00
 };
 
-// uchar printhello[] = {
-//     0x13, 0x00, 0x00, 0x00,     // nop
-//     0x13, 0x00, 0x00, 0x00,     // nop 
-//     0x13, 0x00, 0x00, 0x00,     // nop 
-//     // <start>
-//     0x17, 0x05, 0x00, 0x00,     // auipc a0, 0x0 
-//     0x13, 0x05, 0x05, 0x00,     // mv a0, a0 
-//     0x93, 0x08, 0x60, 0x01,     // li a7, 22 
-//     0x73, 0x00, 0x00, 0x00,     // ecall 
-//     0xef, 0xf0, 0x1f, 0xff,     // jal ra, <start>
-//     // <loop>
-//     0xef, 0x00, 0x00, 0x00,     // jal ra, <loop>
-// };
+uchar printhello[] = {
+     0x13, 0x00, 0x00, 0x00,     // nop
+     0x13, 0x00, 0x00, 0x00,     // nop 
+     0x13, 0x00, 0x00, 0x00,     // nop 
+     // <start>
+     0x17, 0x05, 0x00, 0x00,     // auipc a0, 0x0 
+     0x13, 0x05, 0x05, 0x00,     // mv a0, a0 
+     0x93, 0x08, 0x60, 0x01,     // li a7, 22 
+     0x73, 0x00, 0x00, 0x00,     // ecall 
+     0xef, 0xf0, 0x1f, 0xff,     // jal ra, <start>
+     // <loop>
+     0xef, 0x00, 0x00, 0x00,     // jal ra, <loop>
+};
 
 
 // void test_proc_init(int proc_num) {
@@ -292,6 +292,7 @@ userinit(void)
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable , p->kpagetable, initcode, sizeof(initcode));
+  // uvminit(p->pagetable , p->kpagetable, printhello, sizeof(printhello));
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
@@ -537,15 +538,18 @@ scheduler(void)
   struct cpu *c = mycpu();
   extern pagetable_t kernel_pagetable;
 
+// printf("scheduler 1\n");
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+// printf("scheduler 2 proc = %x size = %x\n", proc, sizeof(struct proc));
     
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+// printf("scheduler 4 p = %x\n", p);
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -554,9 +558,11 @@ scheduler(void)
         c->proc = p;
         w_satp(MAKE_SATP(p->kpagetable));
         sfence_vma();
+// printf("scheduler 5\n");
         swtch(&c->context, &p->context);
         w_satp(MAKE_SATP(kernel_pagetable));
         sfence_vma();
+// printf("scheduler 6\n");
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;

@@ -17,6 +17,7 @@ main(void)
   //   mknod("console", CONSOLE, 0);
   //   open("console", O_RDWR);
   // }
+  printf("init: here we are\n");
   dev(O_RDWR, CONSOLE, 0);
   dup(0);  // stdout
   dup(0);  // stderr
